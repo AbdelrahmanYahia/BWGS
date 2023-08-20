@@ -9,7 +9,7 @@ Navigate to:
 ## Introduction
 workflow:
 
-![Worklfow](worklfow.png)
+![Workflow](workflow.png)
 
 **Note: This workflow is still under development.**
 
