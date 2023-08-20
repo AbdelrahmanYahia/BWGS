@@ -20,18 +20,18 @@ error_cheker(){
 }
 
 destination=$1
-echo "$destination"
-if ( -z "$destination"  ) then 
+if [[ -z $destination ]];then
     cmd=""
-else
-    cmd="--directory-prefix $destination"
-    mkdir -p "$destination"
 fi
 
+cmd="--directory-prefix $destination"
+mkdir -p "$destination"
+
+
 # create env from yml file 
-echo -e "${YEL}Creating wes_gatk ENV${NC}"
-mamba env create -f ${script_dir}/workflow/env/wes_gatk.yml
-error_cheker $?
+echo -e "${YEL}Creating bwgs ENV${NC}"
+mamba env create -f ${script_dir}/workflow/env/bwgs.yml
+# error_cheker $?
 
 # download kraken2 database
 echo -e "${YEL}Downloading kraken2 database${NC}"

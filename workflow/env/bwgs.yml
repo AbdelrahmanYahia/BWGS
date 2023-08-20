@@ -30,4 +30,3 @@ dependencies:
     - pyyaml 
     - argparse 
     - tqdm
-    - json
