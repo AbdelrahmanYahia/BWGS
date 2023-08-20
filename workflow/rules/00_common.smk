@@ -1,3 +1,9 @@
+samples = ["mutant"]
+ref = "$HOME/bwgs/refs/wildtype.fna"
+gff = "$HOME/bwgs/refs/wildtype.gff"
+kraken2 = "$HOME/Desktop/DBs/kraken2/k2_pluspfp_20221209.tar.gz"
+
+
 rule QC:
     input:
         R1="../sample/{sample}_R1.fastq",
@@ -254,3 +260,26 @@ rule mapping_stats_assembly:
         qualimap bamqc -bam {input} -outdir {output.quali}
         wait
         """
+
+
+rule multiqc:
+    input:
+        get_final_output
+    
+    conda: "../env/wes_gatk.yml"
+
+    benchmark: "benchamrks/Multiqc/report.txt"
+
+    output:
+        "multiqc/multiqc_report.html"
+    threads: 1
+    resources:
+        mem_mb=lambda wildcards, attempt: (8 * 1024) * attempt,
+        # cores=config["general_low_threads"],
+        mem_gb=lambda wildcards, attempt: 8  * attempt,
+        # nodes = 1,
+        runtime = lambda wildcards, attempt: 60 * 2 * attempt
+
+    shell:
+        "multiqc . -o multiqc/"
+
