@@ -1,8 +1,12 @@
+
+
 samples = ["mutant"]
 ref = "/home/marc/bwgs/refs/wildtype.fna"
 gff = "/home/marc/bwgs/refs/wildtype.gff"
 kraken2 = "/home/marc/Desktop/DBs/kraken2/pluspfp"
 indir  = "/home/marc/bwgs/samples"
+logdir = "logs"
+
 
 def get_final_output(wildcards):
     final_output = []
@@ -19,6 +23,9 @@ def get_final_output(wildcards):
 
     return final_output
 
+def get_log_file(sample, rule):
+    return f"{logdir}/{sample}_{rule}.log"
+
 rule QC:
     input:
         R1=f"{indir}/{{sample}}_R1.fastq",
@@ -27,12 +34,15 @@ rule QC:
         R1="00_filterred/{sample}_R1.fastq",
         R2="00_filterred/{sample}_R2.fastq",
         rep="00_filterred/{sample}_R2.html"
-    threads: 16
+    threads: 12
+
+    log: get_log_file("{sample}", "QC")
+
     shell:
         """
         fastp --in1 {input.R1} --in2 {input.R2} \
             --out1 {output.R1} --out2 {output.R2} \
-            --thread {threads} -h {output.rep}
+            --thread {threads} -h {output.rep} > {log} 2>&1
         """
 
 rule index_ref:
@@ -40,11 +50,14 @@ rule index_ref:
         ref
     output:
         directory('bowtie2_index/')
-    threads: 20
+    threads: 12
+
+    log: get_log_file("Bowtie_index", "index_ref")
+
     shell:
         """
         mkdir -p bowtie2_index
-        bowtie2-build --threads {threads} {input} bowtie2_index/Org_ref
+        bowtie2-build --threads {threads} {input} bowtie2_index/Org_ref > {log} 2>&1
         """
 
 rule map_to_ref:
@@ -54,13 +67,16 @@ rule map_to_ref:
         R2="00_filterred/{sample}_R2.fastq",
     output:
         "01_map_to_ref/{sample}.sam"
-    threads: 20
+    threads: 12
+
+    log: get_log_file("{sample}", "map_to_ref")
+
     shell:
         """
         bowtie2 --threads {threads} -x bowtie2_index/Org_ref \
                 -1 {input.R1} \
                 -2 {input.R2} \
-                -S {output}
+                -S {output} > {log} 2>&1
         """ 
 
 rule fixmate:
@@ -70,7 +86,7 @@ rule fixmate:
         """
         samtools sort -n \
                 -O sam {input} | samtools fixmate \
-                -m -O bam - {output}
+                -m -O bam - {output} 
         """
 rule sort:
     input: "01_map_to_ref/{sample}_fixmate.sam"
@@ -78,7 +94,7 @@ rule sort:
     shell: 
         """
         samtools sort -O bam {input} \
-                -o {output}
+                -o {output} 
         """
 
 rule remove_duplicate:
@@ -91,11 +107,14 @@ rule mapping_stats:
     output: 
         sam="01_map_to_ref/{sample}_stats.txt",
         quali=directory("01_map_to_ref/{sample}_stats")
-    threads: 2
+    threads: 12
+
+    log: get_log_file("{sample}", "mapping_stats")
+
     shell:
         """
         samtools flagstat {input} > {output.sam} &
-        qualimap bamqc -bam {input} -outdir {output.quali}
+        qualimap bamqc -bam {input} -outdir {output.quali} > {log} 2>&1
         wait
         """
 
@@ -111,7 +130,7 @@ rule extract_mapped:
         samtools view -b -f 3 {input} > 01_map_to_ref/{wildcards.sample}_concordant.bam
         samtools fastq -1 {output.R1} \
             -2 {output.R2} \
-            -0 {output.U} 01_map_to_ref/{wildcards.sample}_concordant.bam
+            -0 {output.U} 01_map_to_ref/{wildcards.sample}_concordant.bam 
         """
 
 rule extract_unmapped:
@@ -126,7 +145,7 @@ rule extract_unmapped:
         samtools view -b -f 4 {input} > 01_map_to_ref/{wildcards.sample}_unmapped.bam
         samtools fastq -1 {output.R1} \
             -2 {output.R2} \
-            -0 {output.U} 01_map_to_ref/{wildcards.sample}_unmapped.bam
+            -0 {output.U} 01_map_to_ref/{wildcards.sample}_unmapped.bam 
         """
 
 rule assemble_RAW_reads:
@@ -136,12 +155,14 @@ rule assemble_RAW_reads:
     output:
         eldir=directory("03_Assembly/RAW/{sample}_filterd-Assembly"),
         asmpl="03_Assembly/RAW/{sample}_filterd-Assembly/assembly.fasta"
-    threads: 32
+    threads: 12
+
+    log: get_log_file("{sample}", "assemble_RAW_reads")
     shell:
         """
-    unicycler -1 {input.R1} -2 {input.R2} \
+        unicycler -1 {input.R1} -2 {input.R2} \
               -o {output.eldir} \
-              --threads {threads} 
+              --threads {threads} > {log} 2>&1
         """
 
 rule assmble_qc_RAW_reads:
@@ -150,7 +171,7 @@ rule assmble_qc_RAW_reads:
     output:
         directory("03_Assembly/RAW/{sample}_filterd-Assembly/QC")
     shell:
-        "quast -o {output} {input}"
+        "quast -o {output} {input} > {log} 2>&1"
 
 rule assemble_mapped_reads:
     input:
@@ -159,12 +180,15 @@ rule assemble_mapped_reads:
     output:
         eldir=directory("03_Assembly/mapped_reads/{sample}_mapped_reads-Assembly"),
         asmpl="03_Assembly/mapped_reads/{sample}_mapped_reads-Assembly/assembly.fasta"
-    threads: 32
+    threads: 12
+
+    log: get_log_file("{sample}", "assemble_mapped_reads")
+
     shell:
         """
     unicycler -1 {input.R1} -2 {input.R2} \
               -o {output.eldir} \
-              --threads {threads} 
+              --threads {threads}  > {log} 2>&1
         """
 
 rule assmble_qc_mapped_reads:
@@ -172,8 +196,10 @@ rule assmble_qc_mapped_reads:
         "03_Assembly/mapped_reads/{sample}_mapped_reads-Assembly/assembly.fasta"
     output:
         directory("03_Assembly/mapped_reads/{sample}_mapped_reads-Assembly/QC")
+    log: get_log_file("{sample}", "assmble_qc_mapped_reads")
+
     shell:
-        "quast -o {output} {input}"
+        "quast -o {output} {input} > {log} 2>&1"
 
 
 rule kraken_RAW_reads:
@@ -185,7 +211,8 @@ rule kraken_RAW_reads:
         log="04_contamination/filttered/{sample}.out"
     params:
         db=kraken2
-    threads: 32
+    threads: 12
+
     shell:
         """
         kraken2 --db {params.db} --threads {threads} \
@@ -202,7 +229,8 @@ rule kraken_unmapped_reads:
         log="04_contamination/unmapped_reads/{sample}.out"
     params:
         db=kraken2
-    threads: 32
+    threads: 12
+
     shell:
         """
         kraken2 --db {params.db} --threads {threads} \
@@ -215,11 +243,14 @@ rule index_ref_assembly:
         "03_Assembly/RAW/{sample}_filterd-Assembly/assembly.fasta"
     output:
         directory("03_Assembly/RAW/{sample}_filterd-Assembly/bowtie2_index")
-    threads: 32
+    threads: 12
+
+    log: get_log_file("{sample}", "index_ref_assembly")
+
     shell:
         """
         mkdir -p 03_Assembly/RAW/{wildcards.sample}_filterd-Assembly/bowtie2_index/
-        bowtie2-build --threads {threads} {input} 03_Assembly/RAW/{wildcards.sample}_filterd-Assembly/bowtie2_index/assembly
+        bowtie2-build --threads {threads} {input} 03_Assembly/RAW/{wildcards.sample}_filterd-Assembly/bowtie2_index/assembly > {log} 2>&1
         """
 
 rule map_to_assembly:
@@ -229,13 +260,16 @@ rule map_to_assembly:
         R2="00_filterred/{sample}_R2.fastq",
     output:
         "05_assembly-mapping/{sample}.sam"
-    threads: 32
+    threads: 12
+
+    log: get_log_file("{sample}", "map_to_assembly")
+
     shell:
         """
         bowtie2 --threads {threads} -x 03_Assembly/RAW/{wildcards.sample}_filterd-Assembly/bowtie2_index/assembly \
                 -1 {input.R1} \
                 -2 {input.R2} \
-                -S {output}
+                -S {output} > {log} 2>&1
         """ 
 
 rule fixmate_assembly:
@@ -254,7 +288,7 @@ rule sort_assembly:
     shell: 
         """
         samtools sort -O bam {input} \
-                -o {output}
+                -o {output} 
         """
 
 rule remove_duplicate_assembly:
@@ -268,11 +302,14 @@ rule mapping_stats_assembly:
     output: 
         sam="05_assembly-mapping/{sample}_stats.txt",
         quali=directory("05_assembly-mapping/{sample}_stats")
-    threads: 2
+    threads: 12
+
+    log: get_log_file("{sample}", "mapping_stats_assembly")
+
     shell:
         """
         samtools flagstat {input} > {output.sam} &
-        qualimap bamqc -bam {input} -outdir {output.quali}
+        qualimap bamqc -bam {input} -outdir {output.quali} > {log} 2>&1
         wait
         """
 
@@ -287,7 +324,8 @@ rule multiqc:
 
     output:
         "multiqc/multiqc_report.html"
-    threads: 1
+    threads: 12
+
     resources:
         mem_mb=lambda wildcards, attempt: (8 * 1024) * attempt,
         # cores=config["general_low_threads"],
