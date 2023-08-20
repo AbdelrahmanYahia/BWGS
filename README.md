@@ -8,7 +8,7 @@ Navigate to:
 
 ## Introduction
 workflow:
-![worklfow.png]
+![Worklfow](worklfow.png)
 **Note: This workflow is still under development.**
 
 ## Workflow
