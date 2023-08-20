@@ -7,7 +7,8 @@ Navigate to:
 - [Running the Analysis](#Running-the-Analysis)
 
 ## Introduction
-
+workflow:
+![workflow.png]
 **Note: This workflow is still under development.**
 
 ## Workflow
