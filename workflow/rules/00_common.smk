@@ -21,6 +21,12 @@ def get_final_output(wildcards):
             sample = samples, dir = ["unmapped_reads", "filttered"]
     ))
 
+
+    final_output.extend(expand(
+            "06_call_variants/{sample}.filtterd.vcf.gz",
+            sample = samples
+    ))
+
     return final_output
 
 def get_log_file(sample, rule):
@@ -101,6 +107,35 @@ rule remove_duplicate:
     input: "01_map_to_ref/{sample}_fixmate.bam"
     output: "01_map_to_ref/{sample}_dedup.bam"
     shell: "samtools markdup -r -S {input} {output}"
+
+
+rule filter_varaints:
+    input:
+        "06_call_variants/{sample}.vcf.gz"
+    output:
+        "06_call_variants/{sample}.filtterd.vcf.gz"
+    threads: 12
+    params:
+        ref=ref
+    shell:
+        """
+        bcftools view {input} | vcfutils.pl varFilter - > {output}
+        """
+
+rule call_variants:
+    input:
+        "01_map_to_ref/{sample}_dedup.bam"
+    output:
+        "06_call_variants/{sample}.vcf.gz"
+    threads: 12
+    params:
+        ref=ref
+    shell:
+        """
+        bcftools mpileup --threads {threads}  -Ou \
+            -f {params.ref} {input} | bcftools call --ploidy 1 \
+            --threads {threads} -mv -o {output}
+        """
 
 rule mapping_stats:
     input: "01_map_to_ref/{sample}_dedup.bam"
