@@ -3,7 +3,7 @@ samples = ["mutant"]
 import os
 import pandas as pd
 
-workdir: config["working_dir"]
+workdir: "/home/marc/bwgs/Output"
 
 include: "rules/00_common.smk"
 

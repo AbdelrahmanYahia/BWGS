@@ -1,8 +1,8 @@
 samples = ["mutant"]
-ref = "$HOME/bwgs/refs/wildtype.fna"
-gff = "$HOME/bwgs/refs/wildtype.gff"
-kraken2 = "$HOME/Desktop/DBs/kraken2/k2_pluspfp_20221209.tar.gz"
-
+ref = "/home/marc/bwgs/refs/wildtype.fna"
+gff = "/home/marc/bwgs/refs/wildtype.gff"
+kraken2 = "/home/marc/Desktop/DBs/kraken2/pluspfp"
+indir  = "/home/marc/bwgs/samples"
 
 def get_final_output(wildcards):
     final_output = []
@@ -21,8 +21,8 @@ def get_final_output(wildcards):
 
 rule QC:
     input:
-        R1="../sample/{sample}_R1.fastq",
-        R2="../sample/{sample}_R2.fastq"
+        R1=f"{indir}/{{sample}}_R1.fastq",
+        R2=f"{indir}/{{sample}}_R2.fastq"
     output:
         R1="00_filterred/{sample}_R1.fastq",
         R2="00_filterred/{sample}_R2.fastq",
@@ -136,12 +136,12 @@ rule assemble_RAW_reads:
     output:
         eldir=directory("03_Assembly/RAW/{sample}_filterd-Assembly"),
         asmpl="03_Assembly/RAW/{sample}_filterd-Assembly/assembly.fasta"
-    threads: 50
+    threads: 32
     shell:
         """
     unicycler -1 {input.R1} -2 {input.R2} \
               -o {output.eldir} \
-              --threads {threads} --no_pilon --no_correct
+              --threads {threads} 
         """
 
 rule assmble_qc_RAW_reads:
@@ -152,7 +152,6 @@ rule assmble_qc_RAW_reads:
     shell:
         "quast -o {output} {input}"
 
-
 rule assemble_mapped_reads:
     input:
         R1="02_Extract_reads/mapped_reads/{sample}_R1.fastq",
@@ -160,12 +159,12 @@ rule assemble_mapped_reads:
     output:
         eldir=directory("03_Assembly/mapped_reads/{sample}_mapped_reads-Assembly"),
         asmpl="03_Assembly/mapped_reads/{sample}_mapped_reads-Assembly/assembly.fasta"
-    threads: 50
+    threads: 32
     shell:
         """
     unicycler -1 {input.R1} -2 {input.R2} \
               -o {output.eldir} \
-              --threads {threads} --no_pilon --no_correct
+              --threads {threads} 
         """
 
 rule assmble_qc_mapped_reads:
@@ -186,7 +185,7 @@ rule kraken_RAW_reads:
         log="04_contamination/filttered/{sample}.out"
     params:
         db=kraken2
-    threads: 40
+    threads: 32
     shell:
         """
         kraken2 --db {params.db} --threads {threads} \
@@ -203,7 +202,7 @@ rule kraken_unmapped_reads:
         log="04_contamination/unmapped_reads/{sample}.out"
     params:
         db=kraken2
-    threads: 40
+    threads: 32
     shell:
         """
         kraken2 --db {params.db} --threads {threads} \
@@ -213,14 +212,14 @@ rule kraken_unmapped_reads:
 
 rule index_ref_assembly:
     input:
-        "03_Assembly/{sample}_filterd-Assembly/assembly.fasta"
+        "03_Assembly/RAW/{sample}_filterd-Assembly/assembly.fasta"
     output:
-        directory("03_Assembly/{sample}_filterd-Assembly/bowtie2_index")
-    threads: 20
+        directory("03_Assembly/RAW/{sample}_filterd-Assembly/bowtie2_index")
+    threads: 32
     shell:
         """
-        mkdir -p {wildcards.sample}_filterd-Assembly/bowtie2_index/
-        bowtie2-build --threads {threads} {input} {wildcards.sample}_filterd-Assembly/bowtie2_index/assembly
+        mkdir -p 03_Assembly/RAW/{wildcards.sample}_filterd-Assembly/bowtie2_index/
+        bowtie2-build --threads {threads} {input} 03_Assembly/RAW/{wildcards.sample}_filterd-Assembly/bowtie2_index/assembly
         """
 
 rule map_to_assembly:
@@ -230,10 +229,10 @@ rule map_to_assembly:
         R2="00_filterred/{sample}_R2.fastq",
     output:
         "05_assembly-mapping/{sample}.sam"
-    threads: 20
+    threads: 32
     shell:
         """
-        bowtie2 --threads {threads} -x {wildcards.sample}_filterd-Assembly/bowtie2_index/assembly \
+        bowtie2 --threads {threads} -x 03_Assembly/RAW/{wildcards.sample}_filterd-Assembly/bowtie2_index/assembly \
                 -1 {input.R1} \
                 -2 {input.R2} \
                 -S {output}
