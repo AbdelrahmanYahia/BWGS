@@ -27,6 +27,16 @@ def get_final_output(wildcards):
             sample = samples
     ))
 
+    final_output.extend(expand(
+            "03_Assembly/mapped_reads/{sample}_mapped_reads-Assembly-QC",
+            sample = samples
+    ))
+
+    final_output.extend(expand(
+            "03_Assembly/RAW/{sample}_filterd-Assembly-QC",
+            sample = samples
+    ))
+
     return final_output
 
 def get_log_file(sample, rule):
@@ -204,9 +214,9 @@ rule assmble_qc_RAW_reads:
     input:
         "03_Assembly/RAW/{sample}_filterd-Assembly/assembly.fasta"
     output:
-        directory("03_Assembly/RAW/{sample}_filterd-Assembly/QC")
+        directory("03_Assembly/RAW/{sample}_filterd-Assembly-QC")
     shell:
-        "quast -o {output} {input} > {log} 2>&1"
+        "quast -o {output} {input} "
 
 rule assemble_mapped_reads:
     input:
@@ -230,11 +240,11 @@ rule assmble_qc_mapped_reads:
     input:
         "03_Assembly/mapped_reads/{sample}_mapped_reads-Assembly/assembly.fasta"
     output:
-        directory("03_Assembly/mapped_reads/{sample}_mapped_reads-Assembly/QC")
+        directory("03_Assembly/mapped_reads/{sample}_mapped_reads-Assembly-QC")
     log: get_log_file("{sample}", "assmble_qc_mapped_reads")
 
     shell:
-        "quast -o {output} {input} > {log} 2>&1"
+        "quast -o {output} {input} "
 
 
 rule kraken_RAW_reads:
