@@ -44,8 +44,8 @@ def get_log_file(sample, rule):
 
 rule QC:
     input:
-        R1=f"{indir}/{{sample}}_R1.fastq",
-        R2=f"{indir}/{{sample}}_R2.fastq"
+        R1=f"{indir}/{{sample}}_R1.fastq.gz",
+        R2=f"{indir}/{{sample}}_R2.fastq.gz"
     output:
         R1="00_filterred/{sample}_R1.fastq",
         R2="00_filterred/{sample}_R2.fastq",
@@ -216,7 +216,7 @@ rule assmble_qc_RAW_reads:
     output:
         directory("03_Assembly/RAW/{sample}_filterd-Assembly-QC")
     shell:
-        "quast -o {output} {input} "
+        "quast -o {output} {input}"
 
 rule assemble_mapped_reads:
     input:
